@@ -32,7 +32,8 @@ func MakeViewRay(u,v,k float64) Ray {
 	return Ray{o,d}
 }
 func RenderImage(width, height uint32, scene object) *image.RGBA {
-	distance := 1.0
+	distance := -1.0
+	const scale float64 = 10.0
 	img := image.NewRGBA(image.Rect(0, 0, int(width), int(height)))
   b := img.Bounds()
   for y := b.Min.Y; y <= b.Max.Y; y++ {
@@ -47,19 +48,17 @@ func RenderImage(width, height uint32, scene object) *image.RGBA {
 
 		colour := Vector{0,0,0}
 		for i:= 0; i < subsamples; i++ {
-			u  := (fxr/fyr)*(float64(x-x_range/2) + 0.5*rand.Float64() - 0.25)/fxr
-			v  := -(float64(y-y_range/2) + 0.5*rand.Float64() - 0.25)/fyr
+			u  := scale* (fxr/fyr)*(float64(x-x_range/2) + 0.5*rand.Float64() - 0.25)/fxr
+			v  := -scale* (float64(y-y_range/2) + 0.5*rand.Float64() - 0.25)/fyr
 
 			r := MakeViewRay(u, v, distance)
 			//r := MakeViewRay(math.Abs(distance)*u, math.Abs(distance)*v, distance)
 
 			if scene.collides(r) {
-				depth := scene.collisionDepth(r)
-
-				cpt := r.o.Add(r.d.Mul(depth))
+				_, objectColour := scene.collision(r)
 				//fmt.Printf("%f %f %f\n",cpt.x, cpt.y, cpt.z)
 				//colour = colour.Add(Vector{255,255,255})
-				colour = colour.Add(cpt.Mul(1275))
+				colour = colour.Add(objectColour)
 	    	//img.Set(x, y, color.RGBA{uint8(math.Abs(100*cpt.x)), uint8(math.Abs(100*cpt.y)), uint8(math.Abs(100*cpt.z)), 255})
 	    	///img.Set(x, y, color.RGBA{255-uint8(depth), 255-uint8(depth), 255-uint8(depth), 255})
 				//img.Set(x, y, color.RGBA{255, 255, 255, 255})

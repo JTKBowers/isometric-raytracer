@@ -19,7 +19,11 @@ func convertToPNG(w io.Writer, r io.Reader) error {
 }
 
 func main(){
-  img := render.RenderImage(640, 480,render.MakeCuboid(render.MakeVector(0.1,0.1,0.1),render.MakeVector(0.1, 0.1, 0.1)))
+  plane := render.YAxisAlignedPlane{0}
+  cube := render.MakeCuboid(render.MakeVector(0,1,0),render.MakeVector(0.5, 0.5, 0.5))
+  //cube2 := render.MakeCuboid(render.MakeVector(1,0,0),render.MakeVector(0.5, 0.5, 0.5))
+  scene := render.MakeTreeNode(cube, plane)
+  img := render.RenderImage(640, 480, scene)
   f, err := os.Create("out.png")
   if err != nil {
       fmt.Println(err)
