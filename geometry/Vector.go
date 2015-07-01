@@ -1,4 +1,4 @@
-package render
+package geometry
 
 import "math"
 
@@ -38,6 +38,14 @@ func (v Vector) Mag() float64{
   return math.Sqrt(v.x*v.x + v.y*v.y + v.z*v.z)
 }
 
+func (v Vector) SqMag() float64{
+  return v.x*v.x + v.y*v.y + v.z*v.z
+}
+
 func (v Vector) Apply(f func(float64) float64) Vector {
   return Vector{f(v.x), f(v.y), f(v.z)}
+}
+
+func (v Vector) ToArray() [3]float64 {
+  return [3]float64 {v.x,v.y,v.z}
 }

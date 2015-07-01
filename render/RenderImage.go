@@ -6,34 +6,38 @@ import (
 	"math"
 	//"fmt"
   "math/rand"
+	"isometric-renderer/geometry"
 )
 
 const sinθ float64 = 0.4472135954999579 //1.0/math.Sqrt(5)
 const sinθ2 float64 = 1.0/5.0 //sinθ*sinθ
-func MakeViewRay(u,v,k float64) Ray {
+func MakeViewRay(u,v,k float64) geometry.Ray {
 	//var d1 float64 = math.Sqrt(1/(2+4*sinθ2))
 	// = math.Sqrt(5/14)
 	const d1 float64 = 0.5976143046671968
 	//var d2 float64 = -2*sinθ*d1
 	const d2 float64 = -2*sinθ*d1
 	// = -math.Sqrt(2/7)
-	d := Vector{d1,d2,d1}
+	d := geometry.MakeVector(d1,d2,d1)
 
 
-	bu := Vector{1.0/math.Sqrt(2), 0, -1.0/math.Sqrt(2)}
+	bu := geometry.MakeVector(1.0/math.Sqrt(2), 0, -1.0/math.Sqrt(2))
 	var bv1 float64 = math.Sqrt(1.0/7.0)//math.Sqrt(1/(2 + 1/sinθ2))
 	var bv2 float64 = math.Sqrt(5.0/7.0)//bv1/sinθ
-	bv := Vector{bv1, bv2, bv1}
+	bv := geometry.MakeVector(bv1, bv2, bv1)
 
 	//fmt.Println(bu.Dot(d), bv.Dot(d), bu.Dot(bv))
 
 	o := (bu.Mul(u)) .Add( bv.Mul(v) ) .Add(d.Mul(k))
 
-	return Ray{o,d}
+	return geometry.MakeRay(o,d)
 }
-func RenderImage(width, height uint32, scene object) *image.RGBA {
+
+func RenderImage(width, height uint32, scene geometry.Object) *image.RGBA {
 	distance := -1.0
 	const scale float64 = 10.0
+	const subsamples int = 1
+
 	img := image.NewRGBA(image.Rect(0, 0, int(width), int(height)))
   b := img.Bounds()
   for y := b.Min.Y; y <= b.Max.Y; y++ {
@@ -44,18 +48,23 @@ func RenderImage(width, height uint32, scene object) *image.RGBA {
 		fxr := float64(x_range)
 		fyr := float64(y_range)
 
-		const subsamples int = 4
-
-		colour := Vector{0,0,0}
+		colour := geometry.MakeVector(0,0,0)
 		for i:= 0; i < subsamples; i++ {
-			u  := scale* (fxr/fyr)*(float64(x-x_range/2) + 0.5*rand.Float64() - 0.25)/fxr
-			v  := -scale* (float64(y-y_range/2) + 0.5*rand.Float64() - 0.25)/fyr
+			xjitter := 0.5*rand.Float64() - 0.25
+			yjitter := 0.5*rand.Float64() - 0.25
+
+			if i == 0 { //Always cast a ray through the middle
+				xjitter = 0
+				yjitter = 0
+			}
+			u  :=  (scale/fxr) * (fxr/fyr) * (float64(x-x_range/2) + xjitter)
+			v  := -(scale/fyr) *             (float64(y-y_range/2) + yjitter)
 
 			r := MakeViewRay(u, v, distance)
 			//r := MakeViewRay(math.Abs(distance)*u, math.Abs(distance)*v, distance)
 
-			if scene.collides(r) {
-				_, objectColour := scene.collision(r)
+			if scene.Collides(r) {
+				_, objectColour := scene.Collision(r)
 				//fmt.Printf("%f %f %f\n",cpt.x, cpt.y, cpt.z)
 				//colour = colour.Add(Vector{255,255,255})
 				colour = colour.Add(objectColour)
@@ -69,10 +78,11 @@ func RenderImage(width, height uint32, scene object) *image.RGBA {
 		colour = colour.Apply(func(x float64) float64 {
 			return math.Abs(x)/float64(subsamples)
 		})
-		if colour.y != 0{
+		//if colour.y != 0{
 			//fmt.Println(colour.y)
-		}
-		img.Set(x, y, color.RGBA{uint8(colour.x), uint8(colour.y), uint8(colour.z), 255})
+		//}
+		c := colour.ToArray()
+		img.Set(x, y, color.RGBA{uint8(c[0]), uint8(c[1]), uint8(c[2]), 255})
    }
   }
 	return img

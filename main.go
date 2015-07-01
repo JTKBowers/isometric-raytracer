@@ -7,6 +7,7 @@ import (
  "io"
  "fmt"
  "isometric-renderer/render"
+ "isometric-renderer/geometry"
 )
 
 // convertToPNG converts from any recognized format to PNG.
@@ -19,10 +20,12 @@ func convertToPNG(w io.Writer, r io.Reader) error {
 }
 
 func main(){
-  plane := render.YAxisAlignedPlane{0}
-  cube := render.MakeCuboid(render.MakeVector(0,1,0),render.MakeVector(0.5, 0.5, 0.5))
-  //cube2 := render.MakeCuboid(render.MakeVector(1,0,0),render.MakeVector(0.5, 0.5, 0.5))
-  scene := render.MakeTreeNode(cube, plane)
+  plane := geometry.YAxisAlignedPlane{0}
+  cube := geometry.MakeCuboid(geometry.MakeVector(0,1,0),geometry.MakeVector(0.5, 0.5, 0.5))
+  sphere := geometry.MakeSphere(geometry.MakeVector(0,0,0), 1.0)
+  //cube2 := geometry.MakeCuboid(geometry.MakeVector(1,0,0),geometry.MakeVector(0.5, 0.5, 0.5))
+  n := geometry.MakeIntersection(sphere, cube)
+  scene := geometry.MakeTreeNode(n, plane)
   img := render.RenderImage(640, 480, scene)
   f, err := os.Create("out.png")
   if err != nil {
