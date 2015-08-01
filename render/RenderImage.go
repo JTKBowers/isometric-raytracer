@@ -4,7 +4,7 @@ import (
 	"image"
 	"image/color"
 	"math"
-	//"fmt"
+
   "math/rand"
 	"isometric-renderer/geometry"
 )
@@ -33,10 +33,46 @@ func MakeViewRay(u,v,k float64) geometry.Ray {
 	return geometry.MakeRay(o,d)
 }
 
+func calculateColour(r geometry.Ray,
+										 depth float64,
+										 scene geometry.Object,
+										 object geometry.Object,
+										 mat geometry.Material,
+										 recursionLimit uint) (colour geometry.Vector) {
+
+	colour = mat.BaseColour.Mul(mat.CBase)
+
+	if mat.CReflectance != 0 && recursionLimit != 0 {
+		//calculate normal
+		normal := object.Normal(r, depth)
+		dir_proj := normal.Mul(normal.Dot(r.GetDirectionVector()))
+		reflectedDirection := dir_proj.Mul(2).Sub(r.GetDirectionVector())
+
+		incidence := r.Point(depth)
+		reflectedRay := geometry.MakeRay(incidence.Add(reflectedDirection.Mul(0.01)), reflectedDirection) //add a small amount so that it doesn't intersect the mirror
+		_, reflectedColour := castRay(reflectedRay, scene, recursionLimit-1)
+		colour = colour.Add(reflectedColour.Mul(mat.CReflectance))
+	}
+	return
+}
+
+func castRay(r geometry.Ray, scene geometry.Object, recursionLimit uint) (bool, geometry.Vector){
+	if scene.Collides(r) {
+		depth, object, objectColour := scene.Collision(r)
+		// if depth < 0 {
+		// 	return false, geometry.MakeVector(0,0,0)
+		// }
+		// if recursionLimit == 4 {
+		// 	fmt.Println("Reflected")
+		// }
+		return true, calculateColour(r, depth, scene, object, objectColour, recursionLimit)
+	}
+	return false, geometry.MakeVector(0,0,0)
+}
 func RenderImage(width, height uint32, scene geometry.Object) *image.RGBA {
-	distance := -1.0
-	const scale float64 = 10.0
-	const subsamples int = 1
+	distance := -10.0
+	const scale float64 = 7.0
+	const subsamples int = 8
 
 	img := image.NewRGBA(image.Rect(0, 0, int(width), int(height)))
   b := img.Bounds()
@@ -63,16 +99,9 @@ func RenderImage(width, height uint32, scene geometry.Object) *image.RGBA {
 			r := MakeViewRay(u, v, distance)
 			//r := MakeViewRay(math.Abs(distance)*u, math.Abs(distance)*v, distance)
 
-			if scene.Collides(r) {
-				_, objectColour := scene.Collision(r)
-				//fmt.Printf("%f %f %f\n",cpt.x, cpt.y, cpt.z)
-				//colour = colour.Add(Vector{255,255,255})
-				colour = colour.Add(objectColour)
-	    	//img.Set(x, y, color.RGBA{uint8(math.Abs(100*cpt.x)), uint8(math.Abs(100*cpt.y)), uint8(math.Abs(100*cpt.z)), 255})
-	    	///img.Set(x, y, color.RGBA{255-uint8(depth), 255-uint8(depth), 255-uint8(depth), 255})
-				//img.Set(x, y, color.RGBA{255, 255, 255, 255})
-			} else {
-				//img.Set(x, y, color.RGBA{0, 0, 0, 255})
+			collision, c := castRay(r, scene, 5)
+			if collision {
+				colour = colour.Add(c)
 			}
 		}
 		colour = colour.Apply(func(x float64) float64 {

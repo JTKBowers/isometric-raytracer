@@ -49,3 +49,11 @@ func (v Vector) Apply(f func(float64) float64) Vector {
 func (v Vector) ToArray() [3]float64 {
   return [3]float64 {v.x,v.y,v.z}
 }
+
+func (v Vector) Normalise() Vector {
+  mag := v.Mag()
+  if mag == 0 {
+    return v
+  }
+  return v.Mul(1.0/mag)
+}

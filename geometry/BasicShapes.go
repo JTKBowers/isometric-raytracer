@@ -42,14 +42,17 @@ func (b Cuboid) Collides(r Ray) bool{
   return tmax >= tmin
 }
 
-func (b Cuboid) ColourAt(r Ray, depth float64) Vector{
-  cpt := r.Point(depth)
-  return cpt.Sub(b.centrePos).MulV(b.halfExtents.Inv()).Apply(func(x float64) float64 {
-    return 255*math.Abs(x)
-  })
+func (b Cuboid) MaterialAt(r Ray, depth float64) Material{
+  // cpt := r.Point(depth)
+  // col := cpt.Sub(b.centrePos).MulV(b.halfExtents.Inv()).Apply(func(x float64) float64 {
+  //    return 255*math.Abs(x)
+  // })
+  // return HalfMirrorMaterial(col)
+  //return HalfMirrorMaterial(Vector{255,255,255})
+  return SolidColourDiffuseMaterial(Vector{255,0,0})
 }
 
-func (b Cuboid) Collision(r Ray) (float64, Vector){
+func (b Cuboid) Collision(r Ray) (float64, Object, Material){
   d_inv := r.d.Inv()
   tx1 := (b.min.x - r.o.x)*d_inv.x
   tx2 := (b.max.x - r.o.x)*d_inv.x
@@ -66,7 +69,7 @@ func (b Cuboid) Collision(r Ray) (float64, Vector){
 
   tmin = math.Max(tmin, math.Min(tz1, tz2))
 
-  return tmin, b.ColourAt(r, tmin)
+  return tmin, b, b.MaterialAt(r, tmin)
 }
 
 func (b Cuboid) Contains(point Vector) bool {
@@ -83,7 +86,25 @@ func (b Cuboid) Contains(point Vector) bool {
 
 func (b Cuboid) Normal(r Ray, depth float64) Vector {
   cpt := r.Point(depth) //find the collision point
-  return cpt.Sub(b.centrePos).MulV(b.halfExtents.Inv()) //then translate it to box coords, and normalise by the box size
+  ncpt := cpt.Sub(b.centrePos) //then translate it to box coords
+
+  //next have an array of potential normals and find the closest
+  normals := [6] Vector{
+    Vector{1,0,0},
+    Vector{-1,0,0},
+    Vector{0,1,0},
+    Vector{0,-1,0},
+    Vector{0,0,1},
+    Vector{0,0,-1},
+  }
+  i, closest := -1, 1.5
+  for j := 0; j < 6; j++ {
+    dot := ncpt.Dot(normals[j])
+    if dot < closest {
+      i, closest = j, dot
+    }
+  }
+  return normals[i]
 }
 
 type Sphere struct {
@@ -101,7 +122,7 @@ func (s Sphere) Collides(r Ray) bool{
   return s.radius*s.radius >= p.SqMag()
 }
 
-func (s Sphere) Collision(r Ray) (float64, Vector){
+func (s Sphere) Collision(r Ray) (float64, Object, Material){
   if s.Collides(r) {
     o := r.o.Sub(s.centre)
     //solve quadratic equation for t:
@@ -112,9 +133,9 @@ func (s Sphere) Collision(r Ray) (float64, Vector){
     discr := b*b - 4*a*c
     t1 := (-b + math.Sqrt(discr))/(2*a)
     t2 := (-b - math.Sqrt(discr))/(2*a)
-    return math.Min(t1,t2), Vector{0,0,255}
+    return math.Min(t1,t2), s, HalfMirrorMaterial(Vector{0,0,255})
   }
-  return 1e99, Vector{0,0,0}
+  return 1e99, s, SolidColourDiffuseMaterial(Vector{0,0,0})
 }
 
 func (s Sphere) Contains(point Vector) bool {
@@ -123,5 +144,5 @@ func (s Sphere) Contains(point Vector) bool {
 
 func (s Sphere) Normal(r Ray, depth float64) Vector {
   cpt := r.Point(depth) //find the collision point
-  return cpt.Sub(s.centre).Mul(1.0/s.radius) //then translate it to sphere coords, and normalise by the sphere radius
+  return s.centre.Sub(cpt).Mul(1.0/s.radius) //then translate it to sphere coords, and normalise by the sphere radius
 }
